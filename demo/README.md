@@ -1,6 +1,6 @@
 # FHEVM Demo — ConfidentialERC20
 
-Reference implementation demonstrating the patterns documented in [SKILL.md](../zama-fhevm-skill/SKILL.md). Built with [`@fhevm/solidity`](https://www.npmjs.com/package/@fhevm/solidity) v0.11.1 on Sepolia testnet.
+Reference implementation demonstrating the patterns documented in [SKILL.md](../confidential-skill/SKILL.md). Built with [`@fhevm/solidity`](https://www.npmjs.com/package/@fhevm/solidity) v0.11.1 on Sepolia testnet.
 
 ## Contracts
 

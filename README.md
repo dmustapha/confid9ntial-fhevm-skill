@@ -20,7 +20,7 @@ The result: an agent that reads this file generates compilable, deployable FHEVM
 ## Contents
 
 ```
-zama-fhevm-skill/SKILL.md   Main skill document (2110 lines)
+confidential-skill/SKILL.md   Main skill document (2110 lines)
 demo/                        Working ConfidentialERC20 on Sepolia (proves patterns compile)
 ```
 
@@ -137,7 +137,7 @@ FHE.allowThis(balance);             // contract retains access
 ## Project Structure
 
 ```
-zama-fhevm-skill/
+confidential-skill/
   SKILL.md                 AI agent skill document (2110 lines, 20 APs, 3 templates)
 
 demo/
@@ -158,8 +158,8 @@ demo/
 ## Running Locally
 
 ```bash
-git clone https://github.com/dmustapha/zama-fhevm-skill
-cd zama-fhevm-skill/demo
+git clone https://github.com/dmustapha/confidential-skill
+cd confidential-skill/demo
 npm install
 npx hardhat compile
 npx hardhat test

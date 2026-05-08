@@ -1,0 +1,57 @@
+{
+  "project_name": "confidential-skill",
+  "project_type": "documentation",
+  "hackathon": "Zama Developer Program — Mainnet Season 2",
+  "track": "Bounty Track — AI Agent Skills for FHEVM",
+
+  "capture_url": "https://github.com/dmustapha/confidential-skill",
+  "capture_source": "production",
+  "production_url_available": true,
+
+  "target_duration": 150,
+  "max_duration": 180,
+  "social_clip_duration": 12,
+
+  "features_completed": [
+    "SKILL.md 2110-line document (DLAD architecture)",
+    "20 Anti-Patterns (AP-001–AP-020) with before/after code",
+    "5 Quick Start activation patterns",
+    "8 reference sections (type system, operation table, HCU costs, config)",
+    "3 production contract templates (ConfidentialERC20, SealedBidAuction, ConfidentialVote)",
+    "L2-12 Frontend integration (relayer SDK, React hooks)",
+    "20-item pre-submission checklist",
+    "22 passing Hardhat tests",
+    "Deployed ConfidentialERC20 on Sepolia"
+  ],
+
+  "contract_addresses": {
+    "ConfidentialERC20": "0xb3ec6C97420b1495C1979d628D9fDC0B89Bce406"
+  },
+  "network": "Sepolia",
+  "explorer_url": "https://sepolia.etherscan.io/address/0xb3ec6C97420b1495C1979d628D9fDC0B89Bce406",
+
+  "deviations": 1,
+  "known_risks": 3,
+
+  "seeded_demo_data": false,
+
+  "tech_highlights": [
+    "Dual-Layer Activation Design (DLAD) — Quick Start layer loads first, activates correct patterns before context window fills",
+    "@fhevm/solidity v0.11.1 (NOT archived fhevm-solidity)",
+    "ZKPoK input validation via FHE.fromExternal()",
+    "ACL access control via FHE.allow() + FHE.allowThis()",
+    "FHE underflow guard via FHE.select()",
+    "ZamaEthereumConfig auto-detects Sepolia vs mainnet"
+  ],
+
+  "logo": null,
+  "logo_text": "FHEVM SKILL.md",
+
+  "music_vibe": "none",
+  "creative_overrides": "dark terminal aesthetic, Zama purple (#6B46C1), monospace font, animated code generation",
+
+  "scene_count": 6,
+  "dominant_scene": "Scene 3 — Agent Generates Contract (70s)",
+  "key_moment": "Agent generates correct ConfidentialERC20 on first attempt",
+  "social_clip_source": "Scene 3 peak (agent output) + Scene 5 (22 passing)"
+}
