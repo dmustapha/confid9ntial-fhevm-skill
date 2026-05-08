@@ -1,0 +1,24 @@
+{
+  "name": "zama-fhevm-demo",
+  "version": "1.0.0",
+  "description": "Zama FHEVM demo project — ConfidentialERC20 on Sepolia",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy:sepolia": "npx hardhat run scripts/deploy.ts --network sepolia"
+  },
+  "devDependencies": {
+    "hardhat": "^2.22.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0"
+  },
+  "dependencies": {
+    "@fhevm/solidity": "latest",
+    "@zama-fhe/relayer-sdk": "latest",
+    "@openzeppelin/confidential-contracts": "latest",
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.0.0"
+  }
+}

@@ -1,0 +1,59 @@
+# Internal artifacts
+CRITIQUE-REPORT.md
+DEBUG-REPORT.md
+WIRE-REPORT.md
+VERIFY-REPORT.md
+POLISH-REPORT.md
+STRESS-TEST-PLAN.md
+STRESS-TEST-REPORT.md
+PULSE.md
+pipeline-log.md
+config.json
+intel-state.json
+ideas.md
+research-brief.md
+WINNER-BRIEF.md
+.watchdog-last-alert
+.conductor-lock/
+
+# State files
+.conductor-state.json
+.critique-state.json
+.debug-state.json
+.wire-state.json
+.verify-state.json
+.polish-state.json
+.stress-test-state.json
+.design-forge-state.json
+.forge-state.json
+.intel-state.json
+.build-state.json
+.deploy-state.json
+
+# Planning & research dirs
+research/
+warroom/
+zama-fhevm-skill/research/
+zama-fhevm-skill/warroom/
+zama-fhevm-skill/docs/
+
+# Planning documents
+zama-fhevm-skill/PRD.md
+zama-fhevm-skill/ARCHITECTURE.md
+zama-fhevm-skill/PLAN.md
+zama-fhevm-skill/concerns.md
+zama-fhevm-skill/BUILD-REPORT.md
+debug-results/
+
+# Demo: generated artifacts
+demo/artifacts/
+demo/cache/
+demo/typechain-types/
+demo/debug-results/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
