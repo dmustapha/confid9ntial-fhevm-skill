@@ -5,6 +5,7 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test",
+    "test:fork": "FORK=true npx hardhat test test/fork/ConfidentialERC20.fork.test.ts test/fork/ConfidentialERC20.deployed.fork.test.ts test/fork/SealedBidAuction.deployed.fork.test.ts test/fork/ConfidentialVote.deployed.fork.test.ts",
     "deploy:sepolia": "npx hardhat run scripts/deploy.ts --network sepolia"
   },
   "devDependencies": {

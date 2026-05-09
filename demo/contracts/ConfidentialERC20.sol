@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title ConfidentialERC20
-/// @notice ERC-20 token with encrypted balances using Zama FHEVM v0.12.3
+/// @notice ERC-20 token with encrypted balances using @fhevm/solidity v0.11.1
 /// @dev Demonstrates: ZamaEthereumConfig, ACL, ZKPoK inputs, async decryption
 contract ConfidentialERC20 is ZamaEthereumConfig, ReentrancyGuard, Pausable, Ownable {
     string public name;
@@ -71,6 +71,8 @@ contract ConfidentialERC20 is ZamaEthereumConfig, ReentrancyGuard, Pausable, Own
     /// @notice Mark caller's balance as publicly decryptable (new v0.9+ pattern)
     /// @dev After calling this, off-chain relayer can decrypt via publicDecrypt()
     function makeMyBalanceDecryptable() external {
+        // AP-015: verify caller has ACL access before granting public decryptability
+        require(FHE.isAllowed(_balances[msg.sender], msg.sender), "Not authorized");
         FHE.makePubliclyDecryptable(_balances[msg.sender]);
     }
 

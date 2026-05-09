@@ -1762,6 +1762,10 @@ contract ConfidentialVote is ZamaEthereumConfig, Ownable {
 
 FHE operations (`FHE.asEuint64`, `FHE.fromExternal`, `FHE.add`, `FHE.allowThis`, `FHE.makePubliclyDecryptable`, etc.) call the Zama coprocessor precompile at runtime. This precompile is NOT present on local Hardhat network — all FHE transactions revert with "function returned an unexpected amount of data".
 
+The Zama FHEVM coprocessor on Sepolia is deployed at: `0xe3a9105a3a932253a70f126eb1e3b589c643dd24`
+
+This address is automatically configured by `ZamaEthereumConfig` / `@fhevm/solidity` — you do not need to reference it in your contracts. It is useful for understanding fork test failures: only contracts that were deployed on REAL Sepolia (and thus registered in the coprocessor ACL) can execute FHE operations on a Hardhat fork of Sepolia.
+
 **What CAN be tested on local Hardhat:**
 - Contract deployment
 - Access control (OZ Ownable, Pausable) — no FHE involved

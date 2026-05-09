@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract ConfidentialVote is ZamaEthereumConfig, Ownable {
     uint256 public voteEnd;
     uint256 public optionCount;
-    bool    public tallied;
+    mapping(uint256 => bool) public tallied; // option → has been publicly revealed
 
     mapping(address => bool)    public hasVoted;
     mapping(uint256 => euint32) private _tallies; // option → encrypted tally
@@ -51,6 +51,8 @@ contract ConfidentialVote is ZamaEthereumConfig, Ownable {
     function revealTally(uint256 optionIndex) external onlyOwner {
         require(block.timestamp >= voteEnd, "Voting not ended");
         require(optionIndex < optionCount, "Invalid option");
+        require(!tallied[optionIndex], "Already revealed");
+        tallied[optionIndex] = true;
         FHE.makePubliclyDecryptable(_tallies[optionIndex]);
         emit TallyRevealed(optionIndex);
     }

@@ -19,7 +19,7 @@ contract SealedBidAuction is ZamaEthereumConfig, Ownable, ReentrancyGuard {
     eaddress private _highestBidder;
 
     event BidPlaced(address indexed bidder);
-    event AuctionRevealed(address winner);
+    event AuctionRevealed(); // winner identity decrypted off-chain via relayer
 
     constructor(uint256 durationSeconds) Ownable(msg.sender) {
         auctionEnd = block.timestamp + durationSeconds;
@@ -36,6 +36,9 @@ contract SealedBidAuction is ZamaEthereumConfig, Ownable, ReentrancyGuard {
         require(block.timestamp < auctionEnd, "Auction ended");
 
         euint64 bid = FHE.fromExternal(encBid, proof);
+
+        // Check before overwriting — zero handle means this bidder has no prior bid
+        bool isNewBidder = euint64.unwrap(_bids[msg.sender]) == 0;
 
         // Update encrypted max bid and bidder (fully private)
         ebool   isHigher    = FHE.gt(bid, _highestBid);
@@ -54,7 +57,7 @@ contract SealedBidAuction is ZamaEthereumConfig, Ownable, ReentrancyGuard {
         FHE.allow(newHighBid, owner());
         FHE.allow(newHighder, owner());
 
-        if (euint64.unwrap(_bids[msg.sender]) == 0) bidders.push(msg.sender);
+        if (isNewBidder) bidders.push(msg.sender);
         emit BidPlaced(msg.sender);
     }
 
@@ -64,7 +67,7 @@ contract SealedBidAuction is ZamaEthereumConfig, Ownable, ReentrancyGuard {
         revealed = true;
         FHE.makePubliclyDecryptable(_highestBid);
         FHE.makePubliclyDecryptable(_highestBidder);
-        emit AuctionRevealed(address(0)); // actual winner revealed via relayer
+        emit AuctionRevealed(); // winner identity available via relayer: instance.publicDecrypt([_highestBidder handle])
     }
 
     function revealMyBid() external {
