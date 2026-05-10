@@ -173,7 +173,7 @@ What are you encrypting?
 | euint256 | 0–1.15×10^77 | **NO** | **NO** | **NO** | yes | **NO** | yes | yes |
 | eaddress | address | - | - | - | yes | - | - | yes |
 
-> **Note:** `eint8`–`eint256` (signed) and `ebytes1`–`ebytes256` (byte arrays) are declared as Solidity user-defined types in the `encrypted-types` package, but **no FHE operations are implemented for them in `@fhevm/solidity` v0.11.1** — there are no `FHE.add(eint8, eint8)`, `FHE.eq(ebytes32, ebytes32)`, etc. Do not attempt to use them for computation. Use `euint` with range checks for signed semantics.
+> **Note:** `eint8`–`eint256` (signed) and `ebytes1`–`ebytes256` (byte arrays) are declared as Solidity user-defined types in the `encrypted-types` package, but **no FHE operations are implemented for them in `@fhevm/solidity` v0.11.1**: there are no `FHE.add(eint8, eint8)`, `FHE.eq(ebytes32, ebytes32)`, etc. Do not attempt to use them for computation. Use `euint` with range checks for signed semantics.
 
 ---
 
@@ -1411,7 +1411,7 @@ contract MultiSigReveal is ZamaEthereumConfig, AccessControl {
 HCU (Homomorphic Compute Units) are consumed per FHE operation. Every transaction has:
 - **Global limit**: 20,000,000 HCU (all parallel operations combined)
 - **Sequential limit**: 5,000,000 HCU (single dependency chain)
-- Exceeding either limit causes the **transaction to revert** — no partial execution
+- Exceeding either limit causes the **transaction to revert** (no partial execution)
 
 ### Operation Costs by Type (HCU)
 
@@ -1445,7 +1445,7 @@ euint64 transfer (add + sub + le + select × 2):
   sub(133K) + add(133K) + le(70K) + select(35K) × 2 = 406K sequential
 
 euint64 division by constant:
-  div(715K) alone — leaves 4285K sequential budget remaining
+  div(715K) alone: leaves 4285K sequential budget remaining
 
 Standard DeFi swap (approve → compute → settle, euint64):
   le(70K) + select(35K) + sub(133K) + add(133K) + add(133K) = 504K sequential
@@ -1457,7 +1457,7 @@ Complex vault (3 users, parallel deposits):
 
 Warning zone (approaching sequential limit):
   Chain of: mul + div + mul + div + add (euint64)
-  = 365K + 715K + 365K + 715K + 133K = 2293K — still under 5M but watch further additions
+  = 365K + 715K + 365K + 715K + 133K = 2293K  (still under 5M, but watch further additions)
 ```
 
 ---
@@ -1772,15 +1772,15 @@ contract ConfidentialVote is ZamaEthereumConfig, Ownable {
 
 ### Key Constraint: FHE Operations Require Coprocessor
 
-FHE operations (`FHE.asEuint64`, `FHE.fromExternal`, `FHE.add`, `FHE.allowThis`, `FHE.makePubliclyDecryptable`, etc.) call the Zama coprocessor precompile at runtime. This precompile is NOT present on local Hardhat network — all FHE transactions revert with "function returned an unexpected amount of data".
+FHE operations (`FHE.asEuint64`, `FHE.fromExternal`, `FHE.add`, `FHE.allowThis`, `FHE.makePubliclyDecryptable`, etc.) call the Zama coprocessor precompile at runtime. This precompile is NOT present on local Hardhat network: all FHE transactions revert with "function returned an unexpected amount of data".
 
 The Zama FHEVM coprocessor on Sepolia is deployed at: `0xe3a9105a3a932253a70f126eb1e3b589c643dd24`
 
-This address is automatically configured by `ZamaEthereumConfig` / `@fhevm/solidity` — you do not need to reference it in your contracts. It is useful for understanding fork test failures: only contracts that were deployed on REAL Sepolia (and thus registered in the coprocessor ACL) can execute FHE operations on a Hardhat fork of Sepolia.
+This address is automatically configured by `ZamaEthereumConfig` / `@fhevm/solidity`. You do not need to reference it in your contracts. It is useful for understanding fork test failures: only contracts that were deployed on REAL Sepolia (and thus registered in the coprocessor ACL) can execute FHE operations on a Hardhat fork of Sepolia.
 
 **What CAN be tested on local Hardhat:**
 - Contract deployment
-- Access control (OZ Ownable, Pausable) — no FHE involved
+- Access control (OZ Ownable, Pausable): no FHE involved
 - Function interface existence
 - Constructor arguments and initial state
 - Revert conditions that fire before any FHE call
@@ -1901,7 +1901,7 @@ describe("MyToken — Deployed Contract Fork Tests", function () {
 });
 ```
 
-**Non-FHE guards CAN use fresh deploys** — access control, Pausable, and interface checks work without the coprocessor:
+**Non-FHE guards CAN use fresh deploys**: access control, Pausable, and interface checks work without the coprocessor:
 
 ```typescript
 // test/MyToken.fork.test.ts — non-FHE guards only
@@ -1961,17 +1961,17 @@ async function testEncryptedTransfer(
 
 | Wrong | Correct |
 |-------|---------|
-| Mock `FHE.add` to return 0 — masks real FHE behavior | Use Sepolia fork for FHE tests |
+| Mock `FHE.add` to return 0 (masks real FHE behavior) | Use Sepolia fork for FHE tests |
 | Test only function interfaces locally | Test FHE-free logic locally, FHE ops on fork |
-| `expect(handle).to.equal(100n)` — handles are not plaintext | Decrypt via relayer before asserting plaintext |
+| `expect(handle).to.equal(100n)` (handles are not plaintext) | Decrypt via relayer before asserting plaintext |
 | Skip `input.encrypt()` and pass raw bytes | Always use `createInstance` + `createEncryptedInput` |
 
 <!-- [CRITIQUE E-1] Dedicated Frontend Integration section — required by hackathon brief, was previously scattered across L1-04/L1-05 -->
 ## L2-12 Frontend Integration
 
-Full browser-side integration using `@zama-fhe/relayer-sdk` (also known as `fhevmjs` — the same library, repackaged). Covers environment setup, encrypting user inputs, public decryption, and user-private EIP-712 decryption in a React/Next.js app.
+Full browser-side integration using `@zama-fhe/relayer-sdk` (also known as `fhevmjs`, the same library repackaged). Covers environment setup, encrypting user inputs, public decryption, and user-private EIP-712 decryption in a React/Next.js app.
 
-> **Package naming:** `fhevmjs` is the original name of Zama's JavaScript client library. It is now distributed as `@zama-fhe/relayer-sdk` — same API surface, new package name. All `createInstance`, `SepoliaConfig`, `createEncryptedInput`, `publicDecrypt`, and `userDecrypt` methods are identical. Install `@zama-fhe/relayer-sdk`; tutorials referencing `fhevmjs` apply directly.
+> **Package naming:** `fhevmjs` is the original name of Zama's JavaScript client library. It is now distributed as `@zama-fhe/relayer-sdk`: same API surface, new package name. All `createInstance`, `SepoliaConfig`, `createEncryptedInput`, `publicDecrypt`, and `userDecrypt` methods are identical. Install `@zama-fhe/relayer-sdk`; tutorials referencing `fhevmjs` apply directly.
 
 ### Environment Setup
 
@@ -2025,7 +2025,7 @@ await contract.transfer(recipientAddr, handles[0], inputProof);
 
 ### Public Decrypt (value visible to everyone)
 
-Use when the contract has called `FHE.makePubliclyDecryptable(handle)` — any caller knowing the handle can retrieve the plaintext. Result is not private.
+Use when the contract has called `FHE.makePubliclyDecryptable(handle)`. Any caller knowing the handle can retrieve the plaintext. Result is not private.
 
 ```typescript
 // Contract must have called FHE.makePubliclyDecryptable(balanceHandle) first
@@ -2040,7 +2040,7 @@ async function publicDecryptBalance(handleHex: string): Promise<bigint> {
 
 ### User-Private Decrypt (EIP-712 Signing Flow)
 
-Use when the user wants to read **their own private data** (balance, vote, bid) WITHOUT publishing it on-chain. The ciphertext is re-encrypted under the user's ephemeral NaCl key — only they receive the plaintext. No `FHE.makePubliclyDecryptable` call is needed or wanted.
+Use when the user wants to read **their own private data** (balance, vote, bid) WITHOUT publishing it on-chain. The ciphertext is re-encrypted under the user's ephemeral NaCl key; only they receive the plaintext. No `FHE.makePubliclyDecryptable` call is needed or wanted.
 
 **When to use each pattern:**
 
@@ -2048,7 +2048,7 @@ Use when the user wants to read **their own private data** (balance, vote, bid) 
 |---|---|---|
 | Who can read the result | Anyone with the handle | Only the signing user |
 | On-chain requirement | `FHE.makePubliclyDecryptable(handle)` | `FHE.allow(handle, userAddress)` only |
-| EIP-712 wallet signature | None | Required — user signs per-request |
+| EIP-712 wallet signature | None | Required: user signs per-request |
 | Use case | Auction result, vote tally | Balance lookup, private bid reveal |
 
 #### Solidity — No extra call required

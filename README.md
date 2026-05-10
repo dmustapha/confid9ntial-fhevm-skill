@@ -23,7 +23,7 @@ The result: an agent that reads this file generates compilable, deployable FHEVM
 confid9ntial-fhevm-skill/
   SKILL.md          AI agent skill document (2150+ lines, 20 APs, 3 templates)
   tools/
-    ap-lint.js      Static linter — detects 14 of 20 AP violations statically
+    ap-lint.js      Static linter: detects 14 of 20 AP violations statically
 demo/               Working contracts on Sepolia (proves patterns compile and run)
 ```
 
@@ -33,13 +33,13 @@ demo/               Working contracts on Sepolia (proves patterns compile and ru
 
 The skill document covers:
 
-- **20 Anti-Patterns** (AP-001 through AP-020) — the most common FHEVM mistakes with before/after code
-- **5 Quick Start activation patterns** — correct import, types, ZKPoK, ACL, async decrypt
-- **8 reference sections** — full type system, operation table, HCU cost guide, config patterns
-- **3 contract templates** — ConfidentialERC20, SealedBidAuction, ConfidentialVote
-- **L2-12 Frontend integration** — relayer init, encrypted input binding, React hooks
-- **20-item pre-submission checklist** — AP codes in checkbox format
-- **AP linter** (`tools/ap-lint.js`) — statically detects 14 of 20 anti-patterns (AP-008, 010, 011, 014, 017, 018 require manual review); scans any Solidity directory
+- **20 Anti-Patterns** (AP-001 through AP-020): the most common FHEVM mistakes, with before/after code
+- **5 Quick Start activation patterns**: correct import, types, ZKPoK, ACL, async decrypt
+- **8 reference sections**: full type system, operation table, HCU cost guide, config patterns
+- **3 contract templates**: ConfidentialERC20, SealedBidAuction, ConfidentialVote
+- **L2-12 Frontend integration**: relayer init, encrypted input binding, public decrypt, user-private decrypt (EIP-712), React hooks
+- **20-item pre-submission checklist**: AP codes in checkbox format
+- **AP linter** (`tools/ap-lint.js`): statically detects 14 of 20 anti-patterns (AP-008, 010, 011, 014, 017, 018 require manual review); scans any Solidity directory
 
 ### Using the Skill
 
@@ -68,7 +68,7 @@ The `demo/` directory contains a reference implementation proving every SKILL.md
 |---------|---------|---------|
 | Sepolia | `0xb3ec6C97420b1495C1979d628D9fDC0B89Bce406` | [View on Etherscan](https://sepolia.etherscan.io/address/0xb3ec6C97420b1495C1979d628D9fDC0B89Bce406) |
 
-Contract name: `ConfidentialToken` — verified via `eth_call` on Sepolia.
+Contract name: `ConfidentialToken`, verified via `eth_call` on Sepolia.
 
 ### Contracts
 
@@ -85,7 +85,7 @@ cd demo
 npm install
 npx hardhat compile
 npx hardhat test
-npm run lint        # AP linter — 0 violations expected
+npm run lint        # AP linter: 0 violations expected
 ```
 
 ```
@@ -146,7 +146,7 @@ FHE.allowThis(balance);             // contract retains access
 confid9ntial-fhevm-skill/
   SKILL.md                       AI agent skill document (2150+ lines, 20 APs, 3 templates)
   tools/
-    ap-lint.js                   Static linter — detects 14 of 20 AP violations statically
+    ap-lint.js                   Static linter: detects 14 of 20 AP violations statically
 
 demo/
   contracts/
