@@ -130,6 +130,22 @@ PRIVATE_KEY=0x_your_private_key_here
 ETHERSCAN_API_KEY=your_etherscan_api_key
 ```
 
+### Deploy to Sepolia
+
+```bash
+# Compile
+npx hardhat compile
+
+# Deploy to Sepolia testnet
+npx hardhat run scripts/deploy.ts --network sepolia
+
+# Verify on Etherscan (optional)
+npx hardhat verify --network sepolia <DEPLOYED_ADDRESS> <CONSTRUCTOR_ARGS>
+```
+
+> Faucet: https://sepoliafaucet.com — fund your deployer wallet before running deploy.
+> The deploy script logs contract addresses to console. Save them — you need them for frontend integration and fork testing.
+
 ---
 
 ## L1-02 Type Selection Decision Tree
