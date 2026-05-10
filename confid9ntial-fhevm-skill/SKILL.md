@@ -28,7 +28,7 @@ Jump to:
 - [L2-09 ERC-7984 Confidential Tokens](#l2-09-erc-7984-confidential-tokens)
 - [L2-10 Production Templates](#l2-10-production-templates)
 - [L2-11 Testing Patterns](#l2-11-testing-patterns-hardhat)
-- [L2-12 Frontend Integration](#l2-12-frontend-integration)
+- [L2-12 Frontend Integration](#l2-12-frontend-integration) — public decrypt · user-private decrypt (EIP-712) · React hooks
 
 <!-- [CRITIQUE E-4] Judging criteria coverage map — shows deliberate design to judges -->
 ### Judging Criteria Coverage
@@ -380,8 +380,9 @@ async function decryptBalance(
   const handleHex = "0x" + event.data.slice(-64);
 
   // Step 3: Request decryption from relayer
-  // publicDecrypt returns array of plaintext values matching input handles
-  const [plainBalance] = await instance.publicDecrypt([handleHex]);
+  // publicDecrypt returns { clearValues: { [handle]: value }, abiEncodedClearValues, decryptionProof }
+  const decrypted = await instance.publicDecrypt([handleHex]);
+  const plainBalance = decrypted.clearValues[handleHex];
 
   console.log("Decrypted balance:", plainBalance.toString());
   return plainBalance;
@@ -812,8 +813,9 @@ async function fullDecryptWorkflow(
   const handleHex = ethers.toBeHex(parsed.args.handleId, 32);
 
   // Step 3: Request decryption from relayer
+  // publicDecrypt returns { clearValues: { [handle]: value }, abiEncodedClearValues, decryptionProof }
   const decrypted = await instance.publicDecrypt([handleHex]);
-  const plainBalance = decrypted[0];
+  const plainBalance = decrypted.clearValues[handleHex];
 
   console.log("Balance:", plainBalance.toString());
   return plainBalance;
@@ -1967,7 +1969,9 @@ async function testEncryptedTransfer(
 <!-- [CRITIQUE E-1] Dedicated Frontend Integration section — required by hackathon brief, was previously scattered across L1-04/L1-05 -->
 ## L2-12 Frontend Integration
 
-Full browser-side integration using `@zama-fhe/relayer-sdk`. Covers environment setup, encrypting user inputs, and reading decrypted results in a React/Next.js app.
+Full browser-side integration using `@zama-fhe/relayer-sdk` (also known as `fhevmjs` — the same library, repackaged). Covers environment setup, encrypting user inputs, public decryption, and user-private EIP-712 decryption in a React/Next.js app.
+
+> **Package naming:** `fhevmjs` is the original name of Zama's JavaScript client library. It is now distributed as `@zama-fhe/relayer-sdk` — same API surface, new package name. All `createInstance`, `SepoliaConfig`, `createEncryptedInput`, `publicDecrypt`, and `userDecrypt` methods are identical. Install `@zama-fhe/relayer-sdk`; tutorials referencing `fhevmjs` apply directly.
 
 ### Environment Setup
 
@@ -2019,30 +2023,218 @@ const { handles, inputProof } = await encryptAmount(contractAddr, userAddr, 1000
 await contract.transfer(recipientAddr, handles[0], inputProof);
 ```
 
-### Read Encrypted Result (after on-chain makePubliclyDecryptable)
+### Public Decrypt (value visible to everyone)
+
+Use when the contract has called `FHE.makePubliclyDecryptable(handle)` — any caller knowing the handle can retrieve the plaintext. Result is not private.
 
 ```typescript
 // Contract must have called FHE.makePubliclyDecryptable(balanceHandle) first
-async function decryptBalance(handleHex: string): Promise<bigint> {
+async function publicDecryptBalance(handleHex: string): Promise<bigint> {
   const instance = await getFhevmInstance();
   // AP-004 guard: publicDecrypt is an instance method, NOT a top-level export
+  // Returns: { clearValues: { [handle]: value }, abiEncodedClearValues, decryptionProof }
   const result = await instance.publicDecrypt([handleHex]);
-  return result.decryptedValue as bigint;
+  return result.clearValues[handleHex] as bigint;
 }
 ```
 
-### React Hook Pattern
+### User-Private Decrypt (EIP-712 Signing Flow)
+
+Use when the user wants to read **their own private data** (balance, vote, bid) WITHOUT publishing it on-chain. The ciphertext is re-encrypted under the user's ephemeral NaCl key — only they receive the plaintext. No `FHE.makePubliclyDecryptable` call is needed or wanted.
+
+**When to use each pattern:**
+
+| | `publicDecrypt` | `userDecrypt` |
+|---|---|---|
+| Who can read the result | Anyone with the handle | Only the signing user |
+| On-chain requirement | `FHE.makePubliclyDecryptable(handle)` | `FHE.allow(handle, userAddress)` only |
+| EIP-712 wallet signature | None | Required — user signs per-request |
+| Use case | Auction result, vote tally | Balance lookup, private bid reveal |
+
+#### Solidity — No extra call required
+
+```solidity
+// The FHE.allow() you already grant for ACL access is all that's needed.
+// Do NOT call FHE.makePubliclyDecryptable — that would expose the value to everyone.
+function _mintTo(address user, euint64 amount) internal {
+    euint64 newBal = FHE.add(_balances[user], amount);
+    FHE.allowThis(newBal);
+    FHE.allow(newBal, user);   // ← this is the only requirement for userDecrypt
+    _balances[user] = newBal;
+}
+
+// View function returns the handle so the client can decrypt it
+function balanceOf(address account) public view returns (uint256) {
+    return euint64.unwrap(_balances[account]);
+}
+```
+
+#### TypeScript — Full EIP-712 User Decrypt Flow
 
 ```typescript
-export function useEncryptedBalance(contractAddress: string) {
+import { createInstance, SepoliaConfig } from "@zama-fhe/relayer-sdk";
+import { ethers } from "ethers";
+
+async function userDecryptBalance(
+  signer: ethers.Signer,
+  contractAddress: string,
+  rawHandle: bigint   // value returned by contract.balanceOf(userAddress)
+): Promise<bigint> {
+  const instance = await createInstance({
+    ...SepoliaConfig,
+    network: window.ethereum,   // or RPC URL string
+  });
+
+  // Convert raw handle (bigint from contract) to 32-byte hex string
+  // CRITICAL: ethers.toBeHex(n, 32) — not toString() or toHexString()
+  const handleHex = ethers.toBeHex(rawHandle, 32);
+
+  // Step 1: Generate a one-time NaCl keypair
+  // The relayer re-encrypts the ciphertext under publicKey
+  // Only the holder of privateKey can decrypt the response
+  const keypair = instance.generateKeypair();
+
+  // Step 2: Build EIP-712 typed data
+  // Binds: user's public key + contract + time window
+  // Prevents replay: old signed requests expire after durationDays
+  const startTimestamp = Math.floor(Date.now() / 1000).toString();
+  const durationDays = "10";
+  const contractAddresses = [contractAddress];
+
+  const eip712 = instance.createEIP712(
+    keypair.publicKey,
+    contractAddresses,
+    startTimestamp,
+    durationDays,
+  );
+
+  // Step 3: User wallet signs the EIP-712 message (triggers MetaMask popup)
+  // EIP-712 primary type: UserDecryptRequestVerification
+  const signature = await signer.signTypedData(
+    eip712.domain,
+    { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
+    eip712.message,
+  );
+
+  // Step 4: Call userDecrypt — relayer verifies signature, re-encrypts, returns result
+  // Returns: { [handleHex]: decryptedValue } — keyed by handle hex string
+  const handleContractPairs = [{ handle: handleHex, contractAddress }];
+  const result = await instance.userDecrypt(
+    handleContractPairs,
+    keypair.privateKey,
+    keypair.publicKey,
+    signature.replace("0x", ""),   // CRITICAL: strip 0x prefix — SDK expects raw hex
+    contractAddresses,
+    await signer.getAddress(),
+    startTimestamp,
+    durationDays,
+  );
+
+  return result[handleHex] as bigint;
+}
+```
+
+#### Batch User Decrypt (multiple handles in one request)
+
+The relayer accepts up to **2048 total encrypted bits** per request. Batch to minimize wallet popups.
+
+```typescript
+// Example: decrypt euint64 balance (64 bits) + euint32 tier (32 bits) = 96 bits total ✅
+const handleContractPairs = [
+  { handle: balanceHandleHex, contractAddress },
+  { handle: tierHandleHex,    contractAddress },
+];
+// One keypair, one signature, one EIP-712 message covers all handles
+const result = await instance.userDecrypt(
+  handleContractPairs,
+  keypair.privateKey,
+  keypair.publicKey,
+  signature.replace("0x", ""),
+  [contractAddress],           // contractAddresses list — one entry per unique contract
+  await signer.getAddress(),
+  startTimestamp,
+  durationDays,
+);
+const balance = result[balanceHandleHex] as bigint;
+const tier    = result[tierHandleHex]    as bigint;
+```
+
+#### Constraints
+
+- Max **2048 bits** total across all handles per request (euint64=64, euint32=32, euint128=128, etc.)
+- Max **10 contract addresses** per request
+- `durationDays` must be 1–365; `startTimestamp` must not be in the future
+- Handle must be formatted with `ethers.toBeHex(rawHandle, 32)` — 66 chars including `0x`
+- User must have `FHE.allow(handle, userAddress)` on every handle being decrypted
+
+#### User Decrypt Anti-Patterns
+
+| Wrong | Correct |
+|---|---|
+| `FHE.makePubliclyDecryptable` for private values | `FHE.allow(handle, userAddress)` only — no makePubliclyDecryptable |
+| `signature` passed with `"0x"` prefix | `signature.replace("0x", "")` — SDK expects raw hex |
+| Reusing keypair across requests | `instance.generateKeypair()` per request — ephemeral, single-use |
+| `handle.toString()` or `"0x" + handle.toString(16)` | `ethers.toBeHex(rawHandle, 32)` — must be exactly 32 bytes |
+| `result.decryptedValue` or `result[0]` | `result[handleHex]` — result is a map keyed by handle hex |
+| Skipping the `FHE.allow()` call in contract | Without it, relayer rejects with ACL error |
+
+---
+
+### React Hook Pattern
+
+Two variants depending on whether the value is private to the user or publicly revealed.
+
+```typescript
+// Variant A: user-private decrypt (balance stays private — user signs EIP-712)
+export function usePrivateBalance(contractAddress: string) {
   const [balance, setBalance] = useState<bigint | null>(null);
   const { address } = useAccount();  // wagmi
+  const signer = useEthersSigner();  // wagmi + ethers adapter
+
+  useEffect(() => {
+    if (!address || !signer) return;
+    (async () => {
+      const instance = await createInstance({ ...SepoliaConfig, network: window.ethereum });
+      // 1. Read raw handle from contract view function
+      const rawHandle = await contract.balanceOf(address); // returns uint256
+      const handleHex = ethers.toBeHex(rawHandle, 32);
+      // 2. EIP-712 sign + userDecrypt (no on-chain tx needed)
+      const keypair = instance.generateKeypair();
+      const ts = Math.floor(Date.now() / 1000).toString();
+      const eip712 = instance.createEIP712(keypair.publicKey, [contractAddress], ts, "10");
+      const sig = await signer.signTypedData(
+        eip712.domain,
+        { UserDecryptRequestVerification: eip712.types.UserDecryptRequestVerification },
+        eip712.message,
+      );
+      const result = await instance.userDecrypt(
+        [{ handle: handleHex, contractAddress }],
+        keypair.privateKey, keypair.publicKey,
+        sig.replace("0x", ""), [contractAddress], address, ts, "10",
+      );
+      setBalance(result[handleHex] as bigint);
+    })();
+  }, [address, contractAddress]);
+
+  return balance;
+}
+
+// Variant B: public decrypt (contract called FHE.makePubliclyDecryptable — value is public)
+export function usePublicBalance(contractAddress: string) {
+  const [balance, setBalance] = useState<bigint | null>(null);
+  const { address } = useAccount();
 
   useEffect(() => {
     if (!address) return;
-    // 1. Read handle from contract (balanceOf returns euint64 handle as bytes32)
-    // 2. Call makeMyBalanceDecryptable() on-chain to authorize relayer
-    // 3. Call decryptBalance(handleHex) to get plaintext
+    (async () => {
+      const instance = await createInstance({ ...SepoliaConfig, network: window.ethereum });
+      // 1. Read handle
+      const rawHandle = await contract.balanceOf(address);
+      const handleHex = ethers.toBeHex(rawHandle, 32);
+      // 2. publicDecrypt — no signature needed, value is already public
+      const result = await instance.publicDecrypt([handleHex]);
+      setBalance(result.clearValues[handleHex] as bigint);
+    })();
   }, [address, contractAddress]);
 
   return balance;
@@ -2055,8 +2247,12 @@ export function useEncryptedBalance(contractAddress: string) {
 |-------|---------|
 | `new FhevmInstance()` directly | `await createInstance({ ...SepoliaConfig, network: rpcUrl })` |
 | `publicDecrypt(handle)` top-level | `instance.publicDecrypt([handle])` — it's an instance method |
+| `result.decryptedValue` after publicDecrypt | `result.clearValues[handleHex]` — result is `{ clearValues: {...}, abiEncodedClearValues, decryptionProof }` |
 | Reuse instance across chains | Create a new instance per chain/network |
 | Skip `createEncryptedInput` binding | Always bind to `(contractAddress, userAddress)` to prevent replay |
+| `makePubliclyDecryptable` for user's own private data | Use `FHE.allow(handle, userAddress)` + `instance.userDecrypt()` EIP-712 flow |
+| Pass signature with `"0x"` to `userDecrypt` | `signature.replace("0x", "")` — SDK requires raw hex without prefix |
+| `handle.toString()` before passing to SDK | `ethers.toBeHex(rawHandle, 32)` — SDK requires 32-byte hex string |
 
 ---
 
@@ -2089,6 +2285,14 @@ contract My is ZamaEthereumConfig {
 }
 ```
 
+### Decryption Quick Reference
+
+| Goal | Pattern |
+|------|---------|
+| Anyone can read value (auction result, vote tally) | `FHE.makePubliclyDecryptable(h)` → `instance.publicDecrypt([h])` → `result.clearValues[h]` |
+| Only user reads their own value (balance, bid) | `FHE.allow(h, user)` → `instance.userDecrypt(pairs, priv, pub, sig, addrs, user, ts, days)` → `result[h]` |
+| User sign (EIP-712) | `keypair = instance.generateKeypair()` → `eip712 = instance.createEIP712(pub, [addr], ts, days)` → `signer.signTypedData(...)` |
+
 ### Never Do
 
 | Never | Because |
@@ -2101,6 +2305,9 @@ contract My is ZamaEthereumConfig {
 | `TFHE.decrypt()` | Removed in v0.5 |
 | `externalEuintXX` without `FHE.fromExternal` | Replay attacks |
 | Delete after external call | Reentrancy |
+| `makePubliclyDecryptable` for user-private data | Exposes value to everyone |
+| `signature` with `"0x"` to `userDecrypt` | SDK requires raw hex — strip `0x` first |
+| `result.decryptedValue` after `publicDecrypt` | Field doesn't exist — use `result.clearValues[handle]` |
 
 ### Types That Exist (v0.11.1)
 
